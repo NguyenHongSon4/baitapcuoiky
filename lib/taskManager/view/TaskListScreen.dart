@@ -236,9 +236,48 @@ class _TaskListScreenState extends State<TaskListScreen> {
                   return TaskItem(
                     task: _filteredTasks[index],
                     onDelete: () async {
-                      await TaskDatabase.instance
-                          .deleteTask(_filteredTasks[index].id);
-                      _loadTasks();
+                      // Hiển thị hộp thoại xác nhận
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Xác nhận xóa'),
+                          content: Text(
+                              'Bạn có chắc chắn muốn xóa công việc "${_filteredTasks[index].title}" không?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Hủy'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('OK'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      // Nếu người dùng chọn "OK", tiến hành xóa
+                      if (confirm == true) {
+                        try {
+                          await TaskDatabase.instance
+                              .deleteTask(_filteredTasks[index].id);
+                          _loadTasks();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Đã xóa công việc')),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content:
+                                  Text('Lỗi khi xóa công việc: $e')),
+                            );
+                          }
+                        }
+                      }
                     },
                     onToggleComplete: () async {
                       final task = _filteredTasks[index];
@@ -249,14 +288,19 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       await TaskDatabase.instance.updateTask(updatedTask);
                       _loadTasks();
                     },
-                    onTap: () {
-                      Navigator.push(
+                    onTap: () async {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => TaskDetailScreen(
-                              task: _filteredTasks[index]),
+                            task: _filteredTasks[index],
+                            currentUser: widget.currentUser,
+                          ),
                         ),
                       );
+                      if (result == true) {
+                        _loadTasks();
+                      }
                     },
                   );
                 },

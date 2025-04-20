@@ -101,9 +101,15 @@ class _TaskManagerAppState extends State<TaskManagerApp> {
               ),
             );
           case '/task_detail':
-            final task = settings.arguments as Task;
+          // Đảm bảo arguments là một Map chứa cả task và currentUser
+            final args = settings.arguments as Map<String, dynamic>;
+            final task = args['task'] as Task;
+            final currentUser = args['currentUser'] as User;
             return MaterialPageRoute(
-              builder: (_) => TaskDetailScreen(task: task),
+              builder: (_) => TaskDetailScreen(
+                task: task,
+                currentUser: currentUser,
+              ),
             );
           case '/task_form':
             final args = settings.arguments as Map<String, dynamic>;

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import '../model/Task.dart';
+import '../model/User.dart'; // Import User để nhận currentUser
 import '../db/TaskDatabase.dart';
+import 'TaskFormScreen.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final Task task;
+  final User currentUser; // Thêm currentUser
 
-  const TaskDetailScreen({super.key, required this.task});
+  const TaskDetailScreen({super.key, required this.task, required this.currentUser});
 
   @override
   State<TaskDetailScreen> createState() => _TaskDetailScreenState();
@@ -36,6 +39,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Đã cập nhật trạng thái')),
         );
+        // Trả về true để TaskListScreen làm mới danh sách
+        Navigator.pop(context, true);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -53,6 +58,36 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   bool _isImageFile(String path) {
     final imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp'];
     return imageExtensions.any((ext) => path.toLowerCase().endsWith(ext));
+  }
+
+  Future<void> _editTask() async {
+    // Chuyển đến TaskFormScreen với người dùng hiện tại và công việc hiện tại
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TaskFormScreen(
+          currentUser: widget.currentUser, // Sử dụng người dùng hiện tại
+          task: _task,
+        ),
+      ),
+    );
+
+    // Nếu chỉnh sửa thành công, cập nhật lại _task và trả về true
+    if (result == true) {
+      final updatedTask = await TaskDatabase.instance.getTask(_task.id);
+      if (updatedTask != null) {
+        setState(() {
+          _task = updatedTask;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Đã cập nhật công việc')),
+          );
+          // Trả về true để TaskListScreen làm mới danh sách
+          Navigator.pop(context, true);
+        }
+      }
+    }
   }
 
   @override
@@ -93,6 +128,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         appBar: AppBar(
           title: const Text('Chi tiết Công việc'),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: _editTask,
+            ),
             IconButton(
               icon: Icon(_isDarkMode ? Icons.brightness_7 : Icons.brightness_4),
               onPressed: _toggleTheme,
