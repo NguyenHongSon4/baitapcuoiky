@@ -143,7 +143,7 @@ class TaskDatabase {
   Future<void> insertTask(Task task) async {
     final db = await instance.database;
     if (!await _tableExists(db, 'tasks')) {
-      await _createDB(db, 4); // Tạo bảng nếu chưa tồn tại
+      await _createDB(db, 4);
     }
     await db.insert('tasks', task.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
@@ -151,7 +151,7 @@ class TaskDatabase {
   Future<Task?> getTask(String id) async {
     final db = await instance.database;
     if (!await _tableExists(db, 'tasks')) {
-      await _createDB(db, 4); // Tạo bảng nếu chưa tồn tại
+      await _createDB(db, 4);
     }
     final maps = await db.query('tasks', where: 'id = ?', whereArgs: [id]);
     if (maps.isNotEmpty) {
@@ -160,20 +160,25 @@ class TaskDatabase {
     return null;
   }
 
-  Future<List<Task>> getAllTasks() async {
+  Future<List<Task>> getAllTasks(String createdBy) async {
     final db = await instance.database;
     if (!await _tableExists(db, 'tasks')) {
-      await _createDB(db, 4); // Tạo bảng nếu chưa tồn tại
-      return []; // Trả về danh sách rỗng nếu bảng vừa được tạo
+      await _createDB(db, 4);
+      return [];
     }
-    final maps = await db.query('tasks', orderBy: 'createdAt DESC');
+    final maps = await db.query(
+      'tasks',
+      where: 'createdBy = ?',
+      whereArgs: [createdBy],
+      orderBy: 'createdAt DESC',
+    );
     return maps.map((map) => Task.fromMap(map)).toList();
   }
 
   Future<void> updateTask(Task task) async {
     final db = await instance.database;
     if (!await _tableExists(db, 'tasks')) {
-      await _createDB(db, 4); // Tạo bảng nếu chưa tồn tại
+      await _createDB(db, 4);
     }
     await db.update('tasks', task.toMap(), where: 'id = ?', whereArgs: [task.id]);
   }
@@ -181,7 +186,7 @@ class TaskDatabase {
   Future<void> deleteTask(String id) async {
     final db = await instance.database;
     if (!await _tableExists(db, 'tasks')) {
-      await _createDB(db, 4); // Tạo bảng nếu chưa tồn tại
+      await _createDB(db, 4);
     }
     await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
   }
@@ -190,40 +195,35 @@ class TaskDatabase {
     String? keyword,
     String? status,
     String? category,
-    String? createdBy,
+    required String createdBy, // Bắt buộc createdBy để luôn lọc theo tài khoản
   }) async {
     final db = await instance.database;
     if (!await _tableExists(db, 'tasks')) {
-      await _createDB(db, 4); // Tạo bảng nếu chưa tồn tại
-      return []; // Trả về danh sách rỗng nếu bảng vừa được tạo
+      await _createDB(db, 4);
+      return [];
     }
-    String whereClause = '';
-    List<dynamic> whereArgs = [];
+    String whereClause = 'createdBy = ?'; // Luôn lọc theo createdBy
+    List<dynamic> whereArgs = [createdBy];
 
     if (keyword != null && keyword.isNotEmpty) {
-      whereClause += 'title LIKE ? OR description LIKE ?';
+      whereClause += ' AND (title LIKE ? OR description LIKE ?)';
       whereArgs.addAll(['%$keyword%', '%$keyword%']);
     }
 
     if (status != null && status.isNotEmpty) {
-      whereClause += whereClause.isEmpty ? 'status = ?' : ' AND status = ?';
+      whereClause += ' AND status = ?';
       whereArgs.add(status);
     }
 
     if (category != null && category.isNotEmpty) {
-      whereClause += whereClause.isEmpty ? 'category = ?' : ' AND category = ?';
+      whereClause += ' AND category = ?';
       whereArgs.add(category);
-    }
-
-    if (createdBy != null && createdBy.isNotEmpty) {
-      whereClause += whereClause.isEmpty ? 'createdBy = ?' : ' AND createdBy = ?';
-      whereArgs.add(createdBy);
     }
 
     final maps = await db.query(
       'tasks',
-      where: whereClause.isEmpty ? null : whereClause,
-      whereArgs: whereArgs.isEmpty ? null : whereArgs,
+      where: whereClause,
+      whereArgs: whereArgs,
       orderBy: 'createdAt DESC',
     );
 

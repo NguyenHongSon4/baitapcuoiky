@@ -5,7 +5,7 @@ import '../model/User.dart';
 import 'TaskDetailScreen.dart';
 import 'TaskFormScreen.dart';
 import 'TaskItem.dart';
-import 'package:baitapcuoiky/main.dart';  // Import main.dart để sử dụng ThemeSwitchingWidget
+import 'package:baitapcuoiky/main.dart';
 
 class TaskListScreen extends StatefulWidget {
   final User currentUser;
@@ -32,7 +32,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
   Future<void> _loadTasks() async {
     try {
-      final tasks = await TaskDatabase.instance.getAllTasks();
+      final tasks = await TaskDatabase.instance.getAllTasks(widget.currentUser.id);
       setState(() {
         _tasks = tasks;
         _filteredTasks = tasks;
@@ -44,19 +44,23 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
   }
 
-  void _filterTasks() {
-    final keyword = _searchController.text.toLowerCase();
-    setState(() {
-      _filteredTasks = _tasks.where((task) {
-        final matchesKeyword = task.title.toLowerCase().contains(keyword) ||
-            task.description.toLowerCase().contains(keyword);
-        final matchesStatus = _selectedStatus == null ||
-            task.status.toString().split('.').last == _selectedStatus;
-        final matchesCategory =
-            _selectedCategory == null || task.category == _selectedCategory;
-        return matchesKeyword && matchesStatus && matchesCategory;
-      }).toList();
-    });
+  Future<void> _filterTasks() async {
+    final keyword = _searchController.text;
+    try {
+      final tasks = await TaskDatabase.instance.searchTasks(
+        keyword: keyword.isEmpty ? null : keyword,
+        status: _selectedStatus,
+        category: _selectedCategory,
+        createdBy: widget.currentUser.id,
+      );
+      setState(() {
+        _filteredTasks = tasks;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi khi lọc công việc: $e')),
+      );
+    }
   }
 
   void _resetFilters() {
@@ -100,7 +104,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Lấy ThemeSwitchingWidget để truy cập isDarkMode và toggleTheme
     final themeSwitching = ThemeSwitchingWidget.of(context);
 
     return Scaffold(
@@ -109,7 +112,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
         actions: [
           IconButton(
             icon: Icon(themeSwitching.isDarkMode ? Icons.brightness_7 : Icons.brightness_4),
-            onPressed: themeSwitching.toggleTheme, // Sử dụng toggleTheme từ ThemeSwitchingWidget
+            onPressed: themeSwitching.toggleTheme,
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -227,16 +230,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         _loadTasks();
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Đã xóa công việc')),
+                            const SnackBar(content: Text('Đã xóa công việc')),
                           );
                         }
                       } catch (e) {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                                content:
-                                Text('Lỗi khi xóa công việc: $e')),
+                                content: Text('Lỗi khi xóa công việc: $e')),
                           );
                         }
                       }
